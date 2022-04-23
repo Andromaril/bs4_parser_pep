@@ -1,4 +1,5 @@
 from pathlib import Path
+
 try:
     from src import main
 except ModuleNotFoundError:

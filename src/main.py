@@ -125,12 +125,20 @@ def pep(session):
     pep_td = soup.find_all('td', attrs={'class': 'num'})
 
     result = []
+    links = []
+    table_status_list = []
+
     for teg in tqdm(pep_td):
-        table_status = teg.find_previous('td')
-        table_status2 = table_status.text[1:]
 
         pep_a = find_tag(teg, 'a', attrs={'class': 'reference external'})
         href = pep_a['href']
+        if href not in links:
+            table_status = teg.find_previous('td')
+            table_status2 = table_status.text[1:]
+            links.append(href)
+            table_status_list.append(table_status2)
+
+    for href in tqdm(links):
         version_link = urljoin(pep_url, href)
         response = get_response(session, version_link)
 
@@ -142,21 +150,22 @@ def pep(session):
         status2 = status.find_next('dd')
         result.append(status2.text)
 
-        for key, value in EXPECTED_STATUS.items():
-            if key == table_status2:
-                if status2.text not in value:
-                    logging.info(f'Несовпадающие статусы: \n'
-                                 f'{version_link} \n'
-                                 f'Статус в карточке: {status2.text} \n'
-                                 f'Ожидаемые статусы: {value}')
+    c = [(x, y, z) for x, y, z in zip(table_status_list, result, links)]
+
+    for key, value in EXPECTED_STATUS.items():
+        for i, j, z in c:
+            if i == key and (j not in value):
+                logging.info(f'Несовпадающие статусы: \n'
+                             f'{urljoin(pep_url, z)} \n'
+                             f'Статус в карточке: {j} \n'
+                             f'Ожидаемые статусы: {value}')
 
     table = [('Cтатус', 'Количество')]
     list_result = Counter(result)
     sum2 = sum(list_result.values())
     list_result['Total'] = sum2
     for key, value in list_result.items():
-        if key != 'April Fool!':
-            table.append((key, value))
+        table.append((key, value))
     return table
 
 
